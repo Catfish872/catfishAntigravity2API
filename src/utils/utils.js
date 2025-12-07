@@ -148,7 +148,7 @@ function generateGenerationConfig(parameters, enableThinking, actualModelName){
     ],
     thinkingConfig: {
       includeThoughts: enableThinking,
-      thinkingBudget: enableThinking ? 1024 : 0
+      thinkingBudget: enableThinking ? 512 : 0
     }
   }
   if (enableThinking && actualModelName.includes("claude")){
@@ -193,7 +193,9 @@ function isEnableThinking(modelName){
 
 function generateRequestBody(openaiMessages,modelName,parameters,openaiTools,token){
   
-  const enableThinking = isEnableThinking(modelName);
+  const hasTools = openaiTools && openaiTools.length > 0;
+
+  const enableThinking = isEnableThinking(modelName) && !hasTools;
   const actualModelName = modelMapping(modelName);
   
   // 修改点 2: 提取 System Prompt 逻辑
