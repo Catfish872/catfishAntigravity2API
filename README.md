@@ -1,12 +1,15 @@
 # Antigravity to OpenAI API 代理服务
 
 将 Google Antigravity API 转换为 OpenAI 兼容格式的代理服务，支持流式响应、工具调用和多账号管理。
+修复了原项目存在的问题！
+现在支持系统提示动态覆盖，而不是只使用静态的系统提示
+现在支持带思维链模型的工具调用，绕过了antigravity对思维链签名的检验
 
 ## 功能特性
 
 - ✅ OpenAI API 兼容格式
 - ✅ 流式和非流式响应
-- ✅ 工具调用（Function Calling）支持
+- ✅ 工具调用（Function Calling）支持（支持带思维链模型的工具调用）
 - ✅ 多账号自动轮换
 - ✅ Token 自动刷新
 - ✅ API Key 认证
