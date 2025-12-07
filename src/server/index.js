@@ -160,9 +160,20 @@ app.post('/v1/chat/completions', async (req, res) => {
         endStream(res, id, created, model, hasToolCall ? 'tool_calls' : 'stop');
       }
     } else {
-      const { content, toolCalls } = await generateAssistantResponseNoStream(requestBody, token);
+      // 非流式响应处理
+      
+      // 1. 解构出 reasoning_content
+      const { content, toolCalls, reasoning_content } = await generateAssistantResponseNoStream(requestBody, token);
+      
       const message = { role: 'assistant', content };
+      
+      // 2. 如果有工具调用，加上
       if (toolCalls.length > 0) message.tool_calls = toolCalls;
+      
+      // 3. 【核心修改点】如果有思考内容，加上 reasoning_content 字段 (DeepSeek 标准)
+      if (reasoning_content) {
+          message.reasoning_content = reasoning_content;
+      }
       
       res.json({
         id,
@@ -171,7 +182,7 @@ app.post('/v1/chat/completions', async (req, res) => {
         model,
         choices: [{
           index: 0,
-          message,
+          message, // message 对象里现在包含了 clean 的 content 和独立的 reasoning_content
           finish_reason: toolCalls.length > 0 ? 'tool_calls' : 'stop'
         }]
       });
