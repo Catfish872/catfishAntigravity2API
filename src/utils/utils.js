@@ -51,32 +51,40 @@ function handleUserMessage(extracted, antigravityMessages){
   })
 }
 function handleAssistantMessage(message, antigravityMessages){
-  const lastMessage = antigravityMessages[antigravityMessages.length - 1];
+  // 1. 检查内容
   const hasToolCalls = message.tool_calls && message.tool_calls.length > 0;
-  const hasContent = message.content && message.content.trim() !== '';
+  let content = message.content || '';
+
   
-  const antigravityTools = hasToolCalls ? message.tool_calls.map(toolCall => ({
-    functionCall: {
-      id: toolCall.id,
-      name: toolCall.function.name,
-      args: {
-        query: toolCall.function.arguments
-      }
-    }
-  })) : [];
-  
-  if (lastMessage?.role === "model" && hasToolCalls && !hasContent){
-    lastMessage.parts.push(...antigravityTools)
-  }else{
-    const parts = [];
-    if (hasContent) parts.push({ text: message.content });
-    parts.push(...antigravityTools);
-    
-    antigravityMessages.push({
-      role: "model",
-      parts
-    })
+  if (hasToolCalls) {
+    // 把工具调用转成文本描述
+    // 格式: [Thinking Process] I am calling tool: xxx with args: xxx
+    const toolDescriptions = message.tool_calls.map(tc => 
+      `[System Note: Model requested tool '${tc.function.name}' with args: ${tc.function.arguments}]`
+    ).join('\n');
+
+    // 把这段描述拼接到 content 后面
+    if (content) content += '\n';
+    content += toolDescriptions;
   }
+
+  // 2. 构造消息 parts
+  // 注意：我们现在只发 text，不再发 functionCall 对象了！
+  const parts = [];
+  if (content && content.trim() !== '') {
+      parts.push({ text: content });
+  } else {
+      // 防止空消息报错
+      parts.push({ text: "..." });
+  }
+    
+  // 3. 推入消息队列
+  // 简化逻辑：不再尝试合并上一条消息，直接作为新的 Model 消息推入
+  // 只要 role 是 model，Google 就能理解这是它自己说的话
+  antigravityMessages.push({
+    role: "model",
+    parts: parts
+  });
 }
 function handleToolCall(message, antigravityMessages){
   // 从之前的 model 消息中找到对应的 functionCall name
