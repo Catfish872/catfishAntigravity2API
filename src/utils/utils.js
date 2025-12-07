@@ -117,16 +117,53 @@ function handleToolCall(message, antigravityMessages){
 }
 function openaiMessageToAntigravity(openaiMessages){
   const antigravityMessages = [];
+  
   for (const message of openaiMessages) {
-    // 修改点 1: 这里删除了 || message.role === "system"
-    // 让 system 消息不进入对话历史列表，避免重复或混淆
     if (message.role === "user") {
       const extracted = extractImagesFromContent(message.content);
       handleUserMessage(extracted, antigravityMessages);
     } else if (message.role === "assistant") {
       handleAssistantMessage(message, antigravityMessages);
     } else if (message.role === "tool") {
-      handleToolCall(message, antigravityMessages);
+      // =================================================================
+      // 【完全复刻 cli2api 逻辑】
+      // 将 role 伪装为 "user"，但内容依然保持 functionResponse 结构
+      // =================================================================
+      
+      // 1. 找回函数名 (逻辑与 Python 版一致：如果没有 name 就去历史记录里倒查)
+      let functionName = message.name; 
+      if (!functionName) {
+          for (let i = antigravityMessages.length - 1; i >= 0; i--) {
+            if (antigravityMessages[i].role === 'model') { // Antigravity 里 assistant 叫 model
+              const parts = antigravityMessages[i].parts;
+              for (const part of parts) {
+                if (part.functionCall && part.functionCall.id === message.tool_call_id) {
+                  functionName = part.functionCall.name;
+                  break;
+                }
+              }
+            }
+            if (functionName) break;
+          }
+      }
+
+      // 2. 构造消息：Role 是 user，但 Part 是 functionResponse
+      const fakeUserToolMessage = {
+        role: "user",  // <--- 关键点：伪装成用户
+        parts: [{
+          functionResponse: {
+            name: functionName || "unknown_tool",
+            response: {
+              content: message.content // 工具返回的 JSON 字符串结果
+            }
+          }
+        }]
+      };
+
+      // 3. 推入消息队列
+      // 这里的逻辑比 handleToolCall 更简单直接，不做上一条消息合并，直接作为新消息发送
+      // 这也是 cli2api 的做法
+      antigravityMessages.push(fakeUserToolMessage);
     }
   }
   
