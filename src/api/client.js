@@ -254,25 +254,23 @@ export async function generateAssistantResponseNoStream(requestBody, token) {
     } else if (part.functionCall) {
       toolCalls.push(convertToToolCall(part.functionCall));
     } else if (part.inlineData) {
-      // 保存图片到本地并获取 URL
       const imageUrl = saveBase64Image(part.inlineData.data, part.inlineData.mimeType);
       imageUrls.push(imageUrl);
     }
   }
   
-  // 拼接思维链标签
-  if (thinkingContent) {
-    content = `<think>\n${thinkingContent}\n</think>\n${content}`;
-  }
+  // 【核心修改点】
+  // 删除原本的拼接逻辑： content = `<think>...</think>` + content;
+  // 改为直接返回 thinkingContent，让 server 去决定怎么放
   
-  // 生图模型：转换为 markdown 格式
+  // 处理生图模型的 Markdown
   if (imageUrls.length > 0) {
     let markdown = content ? content + '\n\n' : '';
     markdown += imageUrls.map(url => `![image](${url})`).join('\n\n');
-    return { content: markdown, toolCalls };
+    return { content: markdown, toolCalls, reasoning_content: thinkingContent };
   }
   
-  return { content, toolCalls };
+  return { content, toolCalls, reasoning_content: thinkingContent };
 }
 
 export function closeRequester() {
